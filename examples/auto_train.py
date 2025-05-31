@@ -12,7 +12,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import ImageNet
 
 from src.models.variants import ViscarusB1, ViscarusB2, ViscarusB3, ViscarusB4, ViscarusB5, ViscarusB6, ViscarusB7
-from src.models.multimodal import ViscarusMultiModalB2, ViscarusMultiModalB3, ViscarusMultiModalB4, ViscarusMultiModalB5, ViscarusMultiModalB6, ViscarusMultiModalB7
+from src.models.multimodal import ViscarusMultiModalB2
 from examples.download_cifar import download_cifar10
 
 class ModelTrainer:
@@ -46,7 +46,10 @@ class ModelTrainer:
             inputs, targets = inputs.to(self.device), targets.to(self.device)
             
             optimizer.zero_grad()
-            outputs = self.model(inputs)
+            if self.is_multimodal:
+                outputs = self.model({'image': inputs})['predictions']
+            else:
+                outputs = self.model(inputs)['predictions']
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
@@ -69,7 +72,10 @@ class ModelTrainer:
         with torch.no_grad():
             for inputs, targets in test_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
-                outputs = self.model(inputs)
+                if self.is_multimodal:
+                    outputs = self.model({'image': inputs})['predictions']
+                else:
+                    outputs = self.model(inputs)['predictions']
                 loss = criterion(outputs, targets)
                 
                 running_loss += loss.item()
@@ -196,10 +202,9 @@ def train_all_models():
             'lr': 0.001,
             'weight_decay': 0.01,
             'batch_size': 128,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True
+            'params': {
+                'num_classes': 10,
+                'task_domain': 'classification'
             }
         },
         # B2 model (CIFAR-10)
@@ -212,107 +217,92 @@ def train_all_models():
             'lr': 0.0008,
             'weight_decay': 0.008,
             'batch_size': 128,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True
+            'params': {
+                'num_classes': 10,
+                'modalities': ['image'],
+                'fusion_type': 'concat',
+                'task_domain': 'classification'
             }
         },
-        # B3-B7 models (ImageNet)
+        # B3 model (ImageNet)
         {
-            'name': 'ViscarusMultiModalB3',
-            'class': ViscarusMultiModalB3,
-            'is_multimodal': True,
+            'name': 'ViscarusB3',
+            'class': ViscarusB3,
+            'is_multimodal': False,
             'dataset': 'imagenet',
             'epochs': 140,
             'lr': 0.0006,
             'weight_decay': 0.006,
             'batch_size': 256,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True,
-                'use_advanced_fusion': True
+            'params': {
+                'num_classes': 1000,
+                'task_domain': 'classification',
+                'dynamic_depth': True,
+                'dynamic_width': True
             }
         },
+        # B4 model (ImageNet)
         {
-            'name': 'ViscarusMultiModalB4',
-            'class': ViscarusMultiModalB4,
-            'is_multimodal': True,
+            'name': 'ViscarusB4',
+            'class': ViscarusB4,
+            'is_multimodal': False,
             'dataset': 'imagenet',
             'epochs': 160,
             'lr': 0.0005,
             'weight_decay': 0.005,
             'batch_size': 256,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True,
-                'use_advanced_fusion': True,
-                'use_adaptive_pooling': True
+            'params': {
+                'num_classes': 1000,
+                'task_domain': 'classification',
+                'use_nas': True
             }
         },
+        # B5 model (ImageNet)
         {
-            'name': 'ViscarusMultiModalB5',
-            'class': ViscarusMultiModalB5,
-            'is_multimodal': True,
+            'name': 'ViscarusB5',
+            'class': ViscarusB5,
+            'is_multimodal': False,
             'dataset': 'imagenet',
             'epochs': 180,
             'lr': 0.0004,
             'weight_decay': 0.004,
             'batch_size': 256,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True,
-                'use_advanced_fusion': True,
-                'use_adaptive_pooling': True,
-                'use_dynamic_routing': True
+            'params': {
+                'num_classes': 1000,
+                'task_domain': 'classification',
+                'use_knowledge_distillation': True
             }
         },
+        # B6 model (ImageNet)
         {
-            'name': 'ViscarusMultiModalB6',
-            'class': ViscarusMultiModalB6,
-            'is_multimodal': True,
+            'name': 'ViscarusB6',
+            'class': ViscarusB6,
+            'is_multimodal': False,
             'dataset': 'imagenet',
             'epochs': 200,
             'lr': 0.0003,
             'weight_decay': 0.003,
             'batch_size': 256,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True,
-                'use_advanced_fusion': True,
-                'use_adaptive_pooling': True,
-                'use_dynamic_routing': True,
-                'use_hierarchical_attention': True
+            'params': {
+                'num_classes': 1000,
+                'task_domain': 'classification',
+                'use_advanced_distillation': True
             }
         },
+        # B7 model (ImageNet)
         {
-            'name': 'ViscarusMultiModalB7',
-            'class': ViscarusMultiModalB7,
-            'is_multimodal': True,
+            'name': 'ViscarusB7',
+            'class': ViscarusB7,
+            'is_multimodal': False,
             'dataset': 'imagenet',
             'epochs': 220,
             'lr': 0.0002,
             'weight_decay': 0.002,
             'batch_size': 256,
-            'features': {
-                'use_attention': True,
-                'use_feature_refinement': True,
-                'use_cross_layer': True,
-                'use_multimodal': True,
-                'use_advanced_fusion': True,
-                'use_adaptive_pooling': True,
-                'use_dynamic_routing': True,
-                'use_hierarchical_attention': True,
-                'use_advanced_regularization': True
+            'params': {
+                'num_classes': 1000,
+                'task_domain': 'classification',
+                'use_advanced_optimization': True
             }
         }
     ]
@@ -325,7 +315,7 @@ def train_all_models():
         print(f"\n{'='*50}")
         print(f"Starting training for {config['name']}")
         print(f"Dataset: {config['dataset']}")
-        print(f"Features: {config['features']}")
+        print(f"Parameters: {config['params']}")
         print(f"{'='*50}")
         
         # Get appropriate data loaders
@@ -334,8 +324,8 @@ def train_all_models():
         else:  # imagenet
             train_loader, test_loader = get_imagenet_loaders(batch_size=config['batch_size'])
         
-        # Initialize model with specific features
-        model = config['class'](**config['features'])
+        # Initialize model with specific parameters
+        model = config['class'](**config['params'])
         
         # Create trainer
         trainer = ModelTrainer(model, config['name'], config['is_multimodal'])
@@ -356,7 +346,7 @@ def train_all_models():
             'best_accuracy': best_acc,
             'parameters': sum(p.numel() for p in model.parameters()) / 1e6,
             'epochs': config['epochs'],
-            'features': config['features']
+            'config': config['params']
         })
         
         # Save results after each model
@@ -372,9 +362,9 @@ def train_all_models():
         print(f"Best Accuracy: {result['best_accuracy']:.2f}%")
         print(f"Parameters: {result['parameters']:.2f}M")
         print(f"Training Epochs: {result['epochs']}")
-        print("Features:")
-        for feature, enabled in result['features'].items():
-            print(f"  - {feature}: {enabled}")
+        print("Configuration:")
+        for param, value in result['config'].items():
+            print(f"  - {param}: {value}")
         print("-" * 30)
 
 if __name__ == '__main__':
