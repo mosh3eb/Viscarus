@@ -7,6 +7,9 @@ from pathlib import Path
 import time
 import json
 from datetime import datetime
+import torchvision
+import torchvision.transforms as transforms
+from torchvision.datasets import ImageNet
 
 from src.models.variants import ViscarusB1, ViscarusB2, ViscarusB3, ViscarusB4, ViscarusB5, ViscarusB6, ViscarusB7
 from src.models.multimodal import ViscarusMultiModalB2, ViscarusMultiModalB3, ViscarusMultiModalB4, ViscarusMultiModalB5, ViscarusMultiModalB6, ViscarusMultiModalB7
@@ -130,69 +133,187 @@ class ModelTrainer:
         
         return best_acc
 
-def train_all_models():
-    # Download CIFAR-10 dataset
-    train_loader, test_loader, classes = download_cifar10()
+def get_imagenet_loaders(data_dir='data/imagenet', batch_size=256):
+    """Get ImageNet data loaders with appropriate transforms"""
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                  std=[0.229, 0.224, 0.225])
     
-    # Model configurations
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+        transforms.ToTensor(),
+        normalize,
+    ])
+    
+    val_transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        normalize,
+    ])
+    
+    train_dataset = ImageNet(
+        root=data_dir,
+        split='train',
+        transform=train_transform
+    )
+    
+    val_dataset = ImageNet(
+        root=data_dir,
+        split='val',
+        transform=val_transform
+    )
+    
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True
+    )
+    
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True
+    )
+    
+    return train_loader, val_loader
+
+def train_all_models():
+    # Model configurations with their specific parameters
     model_configs = [
-        # B1 model (non-multimodal)
+        # B1 model (CIFAR-10)
         {
             'name': 'ViscarusB1',
             'class': ViscarusB1,
             'is_multimodal': False,
+            'dataset': 'cifar10',
             'epochs': 100,
             'lr': 0.001,
-            'weight_decay': 0.01
+            'weight_decay': 0.01,
+            'batch_size': 128,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True
+            }
         },
-        # B2-B7 models (multimodal)
+        # B2 model (CIFAR-10)
         {
             'name': 'ViscarusMultiModalB2',
             'class': ViscarusMultiModalB2,
             'is_multimodal': True,
+            'dataset': 'cifar10',
             'epochs': 120,
             'lr': 0.0008,
-            'weight_decay': 0.008
+            'weight_decay': 0.008,
+            'batch_size': 128,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True
+            }
         },
+        # B3-B7 models (ImageNet)
         {
             'name': 'ViscarusMultiModalB3',
             'class': ViscarusMultiModalB3,
             'is_multimodal': True,
+            'dataset': 'imagenet',
             'epochs': 140,
             'lr': 0.0006,
-            'weight_decay': 0.006
+            'weight_decay': 0.006,
+            'batch_size': 256,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True,
+                'use_advanced_fusion': True
+            }
         },
         {
             'name': 'ViscarusMultiModalB4',
             'class': ViscarusMultiModalB4,
             'is_multimodal': True,
+            'dataset': 'imagenet',
             'epochs': 160,
             'lr': 0.0005,
-            'weight_decay': 0.005
+            'weight_decay': 0.005,
+            'batch_size': 256,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True,
+                'use_advanced_fusion': True,
+                'use_adaptive_pooling': True
+            }
         },
         {
             'name': 'ViscarusMultiModalB5',
             'class': ViscarusMultiModalB5,
             'is_multimodal': True,
+            'dataset': 'imagenet',
             'epochs': 180,
             'lr': 0.0004,
-            'weight_decay': 0.004
+            'weight_decay': 0.004,
+            'batch_size': 256,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True,
+                'use_advanced_fusion': True,
+                'use_adaptive_pooling': True,
+                'use_dynamic_routing': True
+            }
         },
         {
             'name': 'ViscarusMultiModalB6',
             'class': ViscarusMultiModalB6,
             'is_multimodal': True,
+            'dataset': 'imagenet',
             'epochs': 200,
             'lr': 0.0003,
-            'weight_decay': 0.003
+            'weight_decay': 0.003,
+            'batch_size': 256,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True,
+                'use_advanced_fusion': True,
+                'use_adaptive_pooling': True,
+                'use_dynamic_routing': True,
+                'use_hierarchical_attention': True
+            }
         },
         {
             'name': 'ViscarusMultiModalB7',
             'class': ViscarusMultiModalB7,
             'is_multimodal': True,
+            'dataset': 'imagenet',
             'epochs': 220,
             'lr': 0.0002,
-            'weight_decay': 0.002
+            'weight_decay': 0.002,
+            'batch_size': 256,
+            'features': {
+                'use_attention': True,
+                'use_feature_refinement': True,
+                'use_cross_layer': True,
+                'use_multimodal': True,
+                'use_advanced_fusion': True,
+                'use_adaptive_pooling': True,
+                'use_dynamic_routing': True,
+                'use_hierarchical_attention': True,
+                'use_advanced_regularization': True
+            }
         }
     ]
     
@@ -203,10 +324,18 @@ def train_all_models():
     for config in model_configs:
         print(f"\n{'='*50}")
         print(f"Starting training for {config['name']}")
+        print(f"Dataset: {config['dataset']}")
+        print(f"Features: {config['features']}")
         print(f"{'='*50}")
         
-        # Initialize model
-        model = config['class']()
+        # Get appropriate data loaders
+        if config['dataset'] == 'cifar10':
+            train_loader, test_loader, _ = download_cifar10()
+        else:  # imagenet
+            train_loader, test_loader = get_imagenet_loaders(batch_size=config['batch_size'])
+        
+        # Initialize model with specific features
+        model = config['class'](**config['features'])
         
         # Create trainer
         trainer = ModelTrainer(model, config['name'], config['is_multimodal'])
@@ -223,9 +352,11 @@ def train_all_models():
         # Store results
         results.append({
             'model': config['name'],
+            'dataset': config['dataset'],
             'best_accuracy': best_acc,
             'parameters': sum(p.numel() for p in model.parameters()) / 1e6,
-            'epochs': config['epochs']
+            'epochs': config['epochs'],
+            'features': config['features']
         })
         
         # Save results after each model
@@ -237,9 +368,13 @@ def train_all_models():
     print("=" * 50)
     for result in results:
         print(f"\nModel: {result['model']}")
+        print(f"Dataset: {result['dataset']}")
         print(f"Best Accuracy: {result['best_accuracy']:.2f}%")
         print(f"Parameters: {result['parameters']:.2f}M")
         print(f"Training Epochs: {result['epochs']}")
+        print("Features:")
+        for feature, enabled in result['features'].items():
+            print(f"  - {feature}: {enabled}")
         print("-" * 30)
 
 if __name__ == '__main__':
